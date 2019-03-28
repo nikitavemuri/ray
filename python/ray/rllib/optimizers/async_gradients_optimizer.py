@@ -8,6 +8,8 @@ from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.timer import TimerStat
 
+import numpy as np
+
 
 class AsyncGradientsOptimizer(PolicyOptimizer):
     """An asynchronous RL optimizer, e.g. for implementing A3C.
@@ -24,6 +26,9 @@ class AsyncGradientsOptimizer(PolicyOptimizer):
         self.dispatch_timer = TimerStat()
         self.grads_per_step = grads_per_step
         self.learner_stats = {}
+        self.i = 0
+        self.nb = 10
+        self.g_est_lst = []
         if not self.remote_evaluators:
             raise ValueError(
                 "Async optimizer requires at least 1 remote evaluator")
@@ -49,6 +54,7 @@ class AsyncGradientsOptimizer(PolicyOptimizer):
                 future = ready_list[0]
 
                 gradient, info = ray.get(future)
+                self.g_est_lst.append(gradient[0].reshape([1, -1]))
                 e = pending_gradients.pop(future)
                 self.learner_stats = get_learner_stats(info)
 
@@ -57,6 +63,12 @@ class AsyncGradientsOptimizer(PolicyOptimizer):
                     self.local_evaluator.apply_gradients(gradient)
                 self.num_steps_sampled += info["batch_count"]
                 self.num_steps_trained += info["batch_count"]
+                self.i += 1
+
+            if self.i % self.nb == 0:
+                new_bs, simple_noise = self.update_bs(info["batch_count"], 500)
+                print("New BS:", new_bs)
+                self.g_est_lst = []
 
             if num_gradients < self.grads_per_step:
                 with self.dispatch_timer:
@@ -65,6 +77,13 @@ class AsyncGradientsOptimizer(PolicyOptimizer):
 
                     pending_gradients[future] = e
                     num_gradients += 1
+
+    def update_bs(self, batch_size, r, min_bs=-np.inf, max_bs=np.inf):
+        g = np.mean(self.g_est_lst, axis = 0)
+        diff = sum([np.square(np.linalg.norm(g_est - g)) for g_est in self.g_est_lst])/self.nb
+        simple_noise = batch_size * np.square(np.linalg.norm(diff)) / np.linalg.norm(g)
+        new_bs = np.sqrt(batch_size * simple_noise * r)
+        return min(max(new_bs, min_bs), max_bs), simple_noise
 
     @override(PolicyOptimizer)
     def stats(self):
