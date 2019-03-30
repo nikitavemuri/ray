@@ -16,6 +16,7 @@ from ray.rllib.evaluation.sample_batch import SampleBatch
 from ray.rllib.models.lstm import chop_into_sequences
 from ray.rllib.utils.annotations import override, DeveloperAPI
 from ray.rllib.utils.debug import log_once, summarize
+from ray.rllib.utils.gradient_noise_scale import gradient_noise_scale
 from ray.rllib.utils.schedules import ConstantSchedule, PiecewiseSchedule
 from ray.rllib.utils.tf_run_builder import TFRunBuilder
 
@@ -123,12 +124,13 @@ class TFPolicyGraph(PolicyGraph):
         self._max_seq_len = max_seq_len
         self._batch_divisibility_req = batch_divisibility_req
 
+        self._base_stats_fetches = {}
         if self.model:
             self._loss = self.model.custom_loss(loss, self._loss_input_dict)
-            self._stats_fetches = {"model": self.model.custom_stats()}
+            self._base_stats_fetches.update(
+                {"model": self.model.custom_stats()})
         else:
             self._loss = loss
-            self._stats_fetches = {}
 
         self._optimizer = self.optimizer()
         self._grads_and_vars = [
@@ -138,6 +140,16 @@ class TFPolicyGraph(PolicyGraph):
         self._grads = [g for (g, v) in self._grads_and_vars]
         self._variables = ray.experimental.tf_utils.TensorFlowVariables(
             self._loss, self._sess)
+
+        # TODO(ekl) take into account grad clipping?
+        noise_scale = gradient_noise_scale(self._grads)
+        batch_size = tf.cast(tf.shape(self._obs_input)[0], tf.float32)
+        R = 500.0  # exchange rate constant
+        self._base_stats_fetches.update({
+            "grad_gnorm": tf.global_norm(self._grads),
+            "gradient_noise_scale": noise_scale,
+            "suggested_batch_size": tf.sqrt(batch_size * noise_scale * R)
+        })
 
         # gather update ops for any batch norm layers
         if update_ops:
@@ -397,7 +409,7 @@ class TFPolicyGraph(PolicyGraph):
         builder.add_feed_dict({self._is_training: True})
         builder.add_feed_dict(self._get_loss_inputs_dict(postprocessed_batch))
         fetches = builder.add_fetches(
-            [self._grads, self._get_grad_and_stats_fetches()])
+            [self._grads, self._get_grad_and_base_stats_fetches()])
         return fetches[0], fetches[1]
 
     def _build_apply_gradients(self, builder, gradients):
@@ -419,18 +431,18 @@ class TFPolicyGraph(PolicyGraph):
         builder.add_feed_dict({self._is_training: True})
         fetches = builder.add_fetches([
             self._apply_op,
-            self._get_grad_and_stats_fetches(),
+            self._get_grad_and_base_stats_fetches(),
             self.extra_apply_grad_fetches()
         ])
         return fetches[1], fetches[2]
 
-    def _get_grad_and_stats_fetches(self):
+    def _get_grad_and_base_stats_fetches(self):
         fetches = self.extra_compute_grad_fetches()
         if LEARNER_STATS_KEY not in fetches:
             raise ValueError(
                 "Grad fetches should contain 'stats': {...} entry")
-        if self._stats_fetches:
-            fetches[LEARNER_STATS_KEY] = dict(self._stats_fetches,
+        if self._base_stats_fetches:
+            fetches[LEARNER_STATS_KEY] = dict(self._base_stats_fetches,
                                               **fetches[LEARNER_STATS_KEY])
         return fetches
 
