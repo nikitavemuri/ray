@@ -149,9 +149,11 @@ class TFPolicyGraph(PolicyGraph):
             ema_op = grad_ema.apply(self._grads)
         with tf.control_dependencies([ema_op]):
             unwrapped_grads = self._grads
-            self._grads = [tf.identity(g) for g in self._grads]
+            unwrapped_grads_and_vars = self._grads_and_vars
+            # when computing gradients, also trigger the EMA update
+            self._grads = [tf.identity(g) for g in unwrapped_grads]
             self._grads_and_vars = [(tf.identity(g), v)
-                                    for (g, v) in self._grads_and_vars]
+                                    for (g, v) in unwrapped_grads_and_vars]
 
         # gather update ops for any batch norm layers
         if update_ops:
@@ -178,7 +180,7 @@ class TFPolicyGraph(PolicyGraph):
 
         with tf.control_dependencies(self._update_ops):
             self._apply_op = self.build_apply_op(self._optimizer,
-                                                 self._grads_and_vars)
+                                                 unwrapped_grads_and_vars)
 
         if len(self._state_inputs) != len(self._state_outputs):
             raise ValueError(
