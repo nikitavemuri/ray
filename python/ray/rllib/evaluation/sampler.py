@@ -2,7 +2,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import gym
 from collections import defaultdict, namedtuple
 import logging
 import numpy as np
@@ -14,13 +13,14 @@ from ray.rllib.evaluation.episode import MultiAgentEpisode, _flatten_action
 from ray.rllib.evaluation.sample_batch_builder import \
     MultiAgentSampleBatchBuilder
 from ray.rllib.evaluation.tf_policy_graph import TFPolicyGraph
-from ray.rllib.env.base_env import BaseEnv
+from ray.rllib.env.base_env import BaseEnv, ASYNC_RESET_RETURN
 from ray.rllib.env.atari_wrappers import get_wrapper_by_cls, MonitorEnv
 from ray.rllib.models.action_dist import TupleActions
 from ray.rllib.offline import InputReader
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.debug import log_once, summarize
 from ray.rllib.utils.tf_run_builder import TFRunBuilder
+from ray.rllib.evaluation.policy_graph import clip_action
 
 logger = logging.getLogger(__name__)
 
@@ -222,31 +222,6 @@ class AsyncSampler(threading.Thread, SamplerInput):
             except queue.Empty:
                 break
         return extra
-
-
-def clip_action(action, space):
-    """Called to clip actions to the specified range of this policy.
-
-    Arguments:
-        action: Single action.
-        space: Action space the actions should be present in.
-
-    Returns:
-        Clipped batch of actions.
-    """
-
-    if isinstance(space, gym.spaces.Box):
-        return np.clip(action, space.low, space.high)
-    elif isinstance(space, gym.spaces.Tuple):
-        if type(action) not in (tuple, list):
-            raise ValueError("Expected tuple space for actions {}: {}".format(
-                action, space))
-        out = []
-        for a, s in zip(action, space.spaces):
-            out.append(clip_action(a, s))
-        return out
-    else:
-        return action
 
 
 def _env_runner(base_env, extra_batch_callback, policies, policy_mapping_fn,
@@ -490,8 +465,9 @@ def _process_observations(base_env, policies, batch_builder_pool,
                     raise ValueError(
                         "Setting episode horizon requires reset() support "
                         "from the environment.")
-            else:
-                # Creates a new episode
+            elif resetted_obs != ASYNC_RESET_RETURN:
+                # Creates a new episode if this is not async return
+                # If reset is async, we will get its result in some future poll
                 episode = active_episodes[env_id]
                 for agent_id, raw_obs in resetted_obs.items():
                     policy_id = episode.policy_for(agent_id)
@@ -529,7 +505,7 @@ def _do_policy_eval(tf_sess, to_eval, policies, active_episodes):
         builder = None
 
     if log_once("compute_actions_input"):
-        logger.info("Example compute_actions() input:\n\n{}\n".format(
+        logger.info("Inputs to compute_actions():\n\n{}\n".format(
             summarize(to_eval)))
 
     for policy_id, eval_data in to_eval.items():
@@ -556,7 +532,7 @@ def _do_policy_eval(tf_sess, to_eval, policies, active_episodes):
             eval_results[k] = builder.get(v)
 
     if log_once("compute_actions_result"):
-        logger.info("Example compute_actions() result:\n\n{}\n".format(
+        logger.info("Outputs of compute_actions():\n\n{}\n".format(
             summarize(eval_results)))
 
     return eval_results
