@@ -79,9 +79,12 @@ class AsyncGradientsOptimizer(PolicyOptimizer):
                     num_gradients += 1
 
     def update_bs(self, batch_size, r, min_bs=-np.inf, max_bs=np.inf):
-        g = np.mean(self.g_est_lst, axis = 0)
-        diff = sum([np.square(np.linalg.norm(g_est - g)) for g_est in self.g_est_lst])/self.nb
-        simple_noise = batch_size * np.square(np.linalg.norm(diff)) / np.linalg.norm(g)
+        g = np.mean(self.g_est_lst, axis=0)
+        diff = sum(
+            [np.square(np.linalg.norm(g_est - g))
+             for g_est in self.g_est_lst]) / self.nb
+        simple_noise = batch_size * np.square(
+            np.linalg.norm(diff)) / np.linalg.norm(g)
         new_bs = np.sqrt(batch_size * simple_noise * r)
         print("noise estimate", simple_noise)
         return min(max(new_bs, min_bs), max_bs), simple_noise

@@ -127,8 +127,9 @@ class TFPolicyGraph(PolicyGraph):
         self._base_stats_fetches = {}
         if self.model:
             self._loss = self.model.custom_loss(loss, self._loss_input_dict)
-            self._base_stats_fetches.update(
-                {"model": self.model.custom_stats()})
+            self._base_stats_fetches.update({
+                "model": self.model.custom_stats()
+            })
         else:
             self._loss = loss
 
@@ -149,8 +150,8 @@ class TFPolicyGraph(PolicyGraph):
         with tf.control_dependencies([ema_op]):
             unwrapped_grads = self._grads
             self._grads = [tf.identity(g) for g in self._grads]
-            self._grads_and_vars = [
-                (tf.identity(g), v) for (g, v) in self._grads_and_vars]
+            self._grads_and_vars = [(tf.identity(g), v)
+                                    for (g, v) in self._grads_and_vars]
 
         # gather update ops for any batch norm layers
         if update_ops:
