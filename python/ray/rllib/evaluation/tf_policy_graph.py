@@ -141,15 +141,16 @@ class TFPolicyGraph(PolicyGraph):
         self._variables = ray.experimental.tf_utils.TensorFlowVariables(
             self._loss, self._sess)
 
-        # TODO(ekl) take into account grad clipping?
-        noise_scale = gradient_noise_scale(self._grads)
-        batch_size = tf.cast(tf.shape(self._obs_input)[0], tf.float32)
-        R = 500.0  # exchange rate constant
-        self._base_stats_fetches.update({
-            "grad_gnorm": tf.global_norm(self._grads),
-            "gradient_noise_scale": noise_scale,
-            "suggested_batch_size": tf.sqrt(batch_size * noise_scale * R)
-        })
+        # track exponentially weighted moving average of gradients
+        # TODO(ekl) this should be on unclipped grads?
+        grad_ema = tf.train.ExponentialMovingAverage(decay=0.95)
+        with tf.control_dependencies(self._grads):
+            ema_op = grad_ema.apply(self._grads)
+        with tf.control_dependencies([ema_op]):
+            unwrapped_grads = self._grads
+            self._grads = [tf.identity(g) for g in self._grads]
+            self._grads_and_vars = [
+                (tf.identity(g), v) for (g, v) in self._grads_and_vars]
 
         # gather update ops for any batch norm layers
         if update_ops:
@@ -157,9 +158,23 @@ class TFPolicyGraph(PolicyGraph):
         else:
             self._update_ops = tf.get_collection(
                 tf.GraphKeys.UPDATE_OPS, scope=tf.get_variable_scope().name)
+
+        # calculate diagnostics
+        noise_scale = gradient_noise_scale(
+            cur_batch_size=tf.cast(tf.shape(self._obs_input)[0], tf.float32),
+            cur_grads=self._grads,
+            true_grads=[grad_ema.average(g) for g in unwrapped_grads])
+        self._base_stats_fetches.update({
+            "grad_gnorm": tf.global_norm(self._grads),
+            "gradient_noise_scale": noise_scale,
+            # TODO(ekl) this is arbitrary right now
+            "suggested_batch_size": tf.sqrt(noise_scale * 500.0)
+        })
+
         if self._update_ops:
-            logger.debug("Update ops to run on apply gradient: {}".format(
+            logger.info("Update ops to run on apply gradient: {}".format(
                 self._update_ops))
+
         with tf.control_dependencies(self._update_ops):
             self._apply_op = self.build_apply_op(self._optimizer,
                                                  self._grads_and_vars)

@@ -115,6 +115,7 @@ class A3CPolicyGraph(LearningRateSchedule, TFPolicyGraph):
                 "cur_lr": tf.cast(self.cur_lr, tf.float64),
                 "policy_loss": self.loss.pi_loss,
                 "policy_entropy": self.loss.entropy,
+                "grad_gnorm": tf.global_norm(self._grads),
                 "var_gnorm": tf.global_norm(self.var_list),
                 "vf_loss": self.loss.vf_loss,
                 "vf_explained_var": explained_variance(self.v_target, self.vf),
