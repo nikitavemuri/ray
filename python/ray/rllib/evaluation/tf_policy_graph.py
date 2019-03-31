@@ -229,7 +229,7 @@ class TFPolicyGraph(PolicyGraph):
         return builder.get(fetches)
 
     def nikita_gns(self, batch):
-        if self._ngns_time / (time.time() - self._start_time) > 0.33:
+        if self._ngns_time / (time.time() - self._start_time) > 0.1:
             return self._last_ngns
         start = time.time()
 
@@ -239,7 +239,7 @@ class TFPolicyGraph(PolicyGraph):
         grads, _ = builder.get(fetches)
         g_est = np.concatenate([g.reshape([-1]) for g in grads])
         self._g_est_samples.append(g_est)
-        if len(self._g_est_samples) > 100:
+        if len(self._g_est_samples) > 20:
             self._g_est_samples.pop(0)
         g = np.mean(self._g_est_samples, axis=0)
         b_simple = (
@@ -254,7 +254,7 @@ class TFPolicyGraph(PolicyGraph):
         return b_simple
 
     def true_gns(self, batch):
-        if self._gns_time / (time.time() - self._start_time) > 0.33:
+        if self._gns_time / (time.time() - self._start_time) > 0.2:
             return self._last_gns
         start = time.time()
 
