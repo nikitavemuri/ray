@@ -164,7 +164,8 @@ class TFPolicyGraph(PolicyGraph):
 
         # calculate diagnostics
         noise_scale = gradient_noise_scale(
-            cur_batch_size=tf.cast(tf.shape(self._obs_input)[0], tf.float32),
+            cur_batch_size=tf.cast(tf.shape(self._loss_input_dict[
+                SampleBatch.CUR_OBS])[0], tf.float32),
             cur_grads=self._grads,
             true_grads=[grad_ema.average(g) for g in unwrapped_grads])
         self._base_stats_fetches.update({

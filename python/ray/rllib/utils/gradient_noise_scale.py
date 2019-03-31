@@ -22,6 +22,7 @@ def gradient_noise_scale(cur_batch_size, cur_grads, true_grads):
 
     G_diff = [g_est - g for (g_est, g) in zip(cur_grads, true_grads)]
     B_simple = cur_batch_size * (
-        tf.global_norm(G_diff) / tf.global_norm(true_grads))
+        tf.square(tf.global_norm(G_diff)) /
+        tf.square(tf.global_norm(true_grads)))
 
     return B_simple
