@@ -188,7 +188,7 @@ class TFPolicyGraph(PolicyGraph):
 
         with tf.control_dependencies(self._update_ops):
             self._apply_op = self.build_apply_op(self._optimizer,
-                                                 unwrapped_grads_and_vars)
+                                                 self._grads_and_vars)
 
         if len(self._state_inputs) != len(self._state_outputs):
             raise ValueError(
