@@ -85,7 +85,7 @@ class AsyncGradientsOptimizer(PolicyOptimizer):
              for g_est in self.g_est_lst]) / self.nb
         simple_noise = batch_size * np.square(
             np.linalg.norm(diff)) / np.linalg.norm(g)
-        new_bs = np.sqrt(batch_size * simple_noise * r)
+        new_bs = np.sqrt(simple_noise * r)
         print("noise estimate", simple_noise)
         return min(max(new_bs, min_bs), max_bs), simple_noise
 
