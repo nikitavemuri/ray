@@ -351,12 +351,12 @@ class VTracePolicyGraph(LearningRateSchedule, VTracePostprocessing,
                                              self.config["momentum"],
                                              self.config["epsilon"])
 
-    @override(TFPolicyGraph)
-    def gradients(self, optimizer, loss):
-        grads = tf.gradients(loss, self.var_list)
-        self.grads, _ = tf.clip_by_global_norm(grads, self.config["grad_clip"])
-        clipped_grads = list(zip(self.grads, self.var_list))
-        return clipped_grads
+#    @override(TFPolicyGraph)
+#    def gradients(self, optimizer, loss):
+#        grads = tf.gradients(loss, self.var_list)
+#        self.grads, _ = tf.clip_by_global_norm(grads, self.config["grad_clip"])
+#        clipped_grads = list(zip(self.grads, self.var_list))
+#        return clipped_grads
 
     @override(TFPolicyGraph)
     def extra_compute_grad_fetches(self):

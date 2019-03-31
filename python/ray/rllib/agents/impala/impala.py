@@ -76,7 +76,7 @@ DEFAULT_CONFIG = with_common_config({
     "grad_clip": 40.0,
     # either "adam" or "rmsprop"
     "opt_type": "adam",
-    "lr": 0.0005,
+    "lr": 0.005,
     "lr_schedule": None,
     # rmsprop considered
     "decay": 0.99,

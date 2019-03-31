@@ -285,9 +285,11 @@ class LearnerThread(threading.Thread):
             batch, _ = self.minibatch_buffer.get()
 
         with self.grad_timer:
+            true_gns = self.local_evaluator.get_policy().true_gns(batch)
             fetches = self.local_evaluator.learn_on_batch(batch)
             self.weights_updated = True
             self.stats = get_learner_stats(fetches)
+            self.stats["true_gns"] = true_gns
 
         self.outqueue.put(batch.count)
         self.learner_queue_size.push(self.inqueue.qsize())

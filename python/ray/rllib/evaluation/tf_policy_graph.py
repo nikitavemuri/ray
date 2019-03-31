@@ -7,6 +7,7 @@ import errno
 import logging
 import tensorflow as tf
 import numpy as np
+import time
 
 import ray
 import ray.experimental.tf_utils
@@ -123,6 +124,8 @@ class TFPolicyGraph(PolicyGraph):
         self._seq_lens = seq_lens
         self._max_seq_len = max_seq_len
         self._batch_divisibility_req = batch_divisibility_req
+        self._start_time = time.time()
+        self._gns_time = 0.0
 
         self._base_stats_fetches = {}
         if self.model:
@@ -138,7 +141,12 @@ class TFPolicyGraph(PolicyGraph):
             (g, v) for (g, v) in self.gradients(self._optimizer, self._loss)
             if g is not None
         ]
+        self._unclipped_grads_and_vars = [
+            (g, v) for (g, v) in self._optimizer.compute_gradients(self._loss)
+            if g is not None
+        ]
         self._grads = [g for (g, v) in self._grads_and_vars]
+        self._unclipped_grads = [g for (g, v) in self._unclipped_grads_and_vars]
         self._variables = ray.experimental.tf_utils.TensorFlowVariables(
             self._loss, self._sess)
 
@@ -170,9 +178,7 @@ class TFPolicyGraph(PolicyGraph):
             true_grads=[grad_ema.average(g) for g in unwrapped_grads])
         self._base_stats_fetches.update({
             "grad_gnorm": tf.global_norm(self._grads),
-            "gradient_noise_scale": noise_scale,
-            # TODO(ekl) this is arbitrary right now
-            "suggested_batch_size": tf.sqrt(noise_scale * 500.0)
+            "moving_average_gns": noise_scale,
         })
 
         if self._update_ops:
@@ -219,6 +225,38 @@ class TFPolicyGraph(PolicyGraph):
         builder = TFRunBuilder(self._sess, "compute_gradients")
         fetches = self._build_compute_gradients(builder, postprocessed_batch)
         return builder.get(fetches)
+
+    def true_gns(self, batch):
+        if self._gns_time / (time.time() - self._start_time) > 0.33:
+            return self._last_gns
+
+        start = time.time()
+        grad_list = None
+        for i in range(batch.count):
+            builder = TFRunBuilder(self._sess, "compute_gradients")
+            fetches = self._build_compute_gradients(
+                builder, batch.slice(i, i+1), unclipped=True)
+            grads, _ = builder.get(fetches)
+            if grad_list is None:
+                grad_list = [[g] for g in grads]
+            else:
+                for g_list, g in zip(grad_list, grads):
+                    g_list.append(g)
+
+        global_norm_squared = np.sum(
+            [np.square(np.linalg.norm(np.mean(g_list, axis=0)))
+                for g_list in grad_list])
+
+        total_variance = 0.0
+        for g_list in grad_list:
+            total_variance += np.sum(np.var(g_list, axis=0))
+
+        delta = time.time() - start
+        self._gns_time += delta
+        gns = total_variance / global_norm_squared
+        self._last_gns = gns
+
+        return gns
 
     @override(PolicyGraph)
     def apply_gradients(self, gradients):
@@ -423,12 +461,16 @@ class TFPolicyGraph(PolicyGraph):
                                       [self.extra_compute_action_fetches()])
         return fetches[0], fetches[1:-1], fetches[-1]
 
-    def _build_compute_gradients(self, builder, postprocessed_batch):
+    def _build_compute_gradients(self, builder, postprocessed_batch, unclipped=False):
         builder.add_feed_dict(self.extra_compute_grad_feed_dict())
         builder.add_feed_dict({self._is_training: True})
         builder.add_feed_dict(self._get_loss_inputs_dict(postprocessed_batch))
-        fetches = builder.add_fetches(
-            [self._grads, self._get_grad_and_base_stats_fetches()])
+        if unclipped:
+            fetches = builder.add_fetches(
+                [self._unclipped_grads, self._get_grad_and_base_stats_fetches()])
+        else:
+            fetches = builder.add_fetches(
+                [self._grads, self._get_grad_and_base_stats_fetches()])
         return fetches[0], fetches[1]
 
     def _build_apply_gradients(self, builder, gradients):
