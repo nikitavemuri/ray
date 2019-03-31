@@ -125,6 +125,7 @@ class TFPolicyGraph(PolicyGraph):
         self._max_seq_len = max_seq_len
         self._batch_divisibility_req = batch_divisibility_req
         self._start_time = time.time()
+        self._g_est_samples = []
         self._gns_time = 0.0
 
         self._base_stats_fetches = {}
@@ -225,6 +226,22 @@ class TFPolicyGraph(PolicyGraph):
         builder = TFRunBuilder(self._sess, "compute_gradients")
         fetches = self._build_compute_gradients(builder, postprocessed_batch)
         return builder.get(fetches)
+
+    def nikita_gns(self, batch):
+        builder = TFRunBuilder(self._sess, "compute_gradients")
+        fetches = self._build_compute_gradients(
+            builder, batch, unclipped=True)
+        grads, _ = builder.get(fetches)
+        g_est = np.concatenate([g.reshape([-1]) for g in grads])
+        self._g_est_samples.append(g_est)
+        if len(self._g_est_samples) > 100:
+            self._g_est_samples.pop(0)
+        g = np.mean(self._g_est_samples, axis=0)
+        b_simple = (
+            batch.count *
+            np.square(np.linalg.norm(g_est - g)) /
+            np.square(np.linalg.norm(g)))
+        return b_simple
 
     def true_gns(self, batch):
         if self._gns_time / (time.time() - self._start_time) > 0.33:
