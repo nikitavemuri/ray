@@ -153,14 +153,14 @@ class TFPolicyGraph(PolicyGraph):
         # track exponentially weighted moving average of gradients
         # TODO(ekl) this should be on unclipped grads?
         grad_ema = tf.train.ExponentialMovingAverage(decay=0.95)
-        with tf.control_dependencies(self._grads):
-            ema_op = grad_ema.apply(self._grads)
+        with tf.control_dependencies(self._unclipped_grads):
+            ema_op = grad_ema.apply(self._unclipped_grads)
         with tf.control_dependencies([ema_op]):
-            unwrapped_grads = self._grads
-            unwrapped_grads_and_vars = self._grads_and_vars
+            unwrapped_grads = self._unclipped_grads
+            unwrapped_grads_and_vars = self._unclipped_grads_and_vars
             # when computing gradients, also trigger the EMA update
-            self._grads = [tf.identity(g) for g in unwrapped_grads]
-            self._grads_and_vars = [(tf.identity(g), v)
+            self._unclipped_grads = [tf.identity(g) for g in unwrapped_grads]
+            self._unclipped_grads_and_vars = [(tf.identity(g), v)
                                     for (g, v) in unwrapped_grads_and_vars]
 
         # gather update ops for any batch norm layers
@@ -174,10 +174,10 @@ class TFPolicyGraph(PolicyGraph):
         noise_scale = gradient_noise_scale(
             cur_batch_size=tf.cast(tf.shape(self._loss_input_dict[
                 SampleBatch.CUR_OBS])[0], tf.float32),
-            cur_grads=self._grads,
+            cur_grads=self._unclipped_grads,
             true_grads=[grad_ema.average(g) for g in unwrapped_grads])
         self._base_stats_fetches.update({
-            "grad_gnorm": tf.global_norm(self._grads),
+            "grad_gnorm": tf.global_norm(self._unclipped_grads),
             "moving_average_gns": noise_scale,
         })
 
