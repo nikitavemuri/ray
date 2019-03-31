@@ -127,6 +127,7 @@ class TFPolicyGraph(PolicyGraph):
         self._start_time = time.time()
         self._g_est_samples = []
         self._gns_time = 0.0
+        self._ngns_time = 0.0
 
         self._base_stats_fetches = {}
         if self.model:
@@ -228,6 +229,10 @@ class TFPolicyGraph(PolicyGraph):
         return builder.get(fetches)
 
     def nikita_gns(self, batch):
+        if self._ngns_time / (time.time() - self._start_time) > 0.33:
+            return self._last_ngns
+        start = time.time()
+
         builder = TFRunBuilder(self._sess, "compute_gradients")
         fetches = self._build_compute_gradients(
             builder, batch, unclipped=True)
@@ -241,13 +246,18 @@ class TFPolicyGraph(PolicyGraph):
             batch.count *
             np.square(np.linalg.norm(g_est - g)) /
             np.square(np.linalg.norm(g)))
+
+        delta = time.time() - start
+        self._ngns_time += delta
+        self._last_ngns = b_simple
+
         return b_simple
 
     def true_gns(self, batch):
         if self._gns_time / (time.time() - self._start_time) > 0.33:
             return self._last_gns
-
         start = time.time()
+
         grad_list = None
         for i in range(batch.count):
             builder = TFRunBuilder(self._sess, "compute_gradients")
@@ -267,10 +277,10 @@ class TFPolicyGraph(PolicyGraph):
         total_variance = 0.0
         for g_list in grad_list:
             total_variance += np.sum(np.var(g_list, axis=0))
+        gns = total_variance / global_norm_squared
 
         delta = time.time() - start
         self._gns_time += delta
-        gns = total_variance / global_norm_squared
         self._last_gns = gns
 
         return gns
