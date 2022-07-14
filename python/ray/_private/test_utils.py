@@ -1369,6 +1369,17 @@ def job_hook(**kwargs):
     sys.exit(0)
 
 
+<<<<<<< HEAD
+=======
+def find_free_port():
+    sock = socket.socket()
+    sock.bind(("", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    return port
+
+
+>>>>>>> a0ce3c111b539b7ab8d8a5ff95489808572aab5a
 @dataclasses.dataclass
 class TestRayActivityResponse:
     """
