@@ -1,0 +1,135 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "oneOf": [
+        {
+            "properties": {
+                "creation_task_failure_context": {
+                    "type": "object",
+                    "properties": {
+                        "language": {
+                            "type": "string",
+                            "enum": ["PYTHON", "JAVA", "CPP"]
+                        },
+                        "serialized_exception": {
+                            "type": "string",
+                            "format": "bytes"
+                        },
+                        "formatted_exception_string": {
+                            "type": "string"
+                        }
+                    },
+                    "required": ["language", "serialized_exception", "formatted_exception_string"]
+                }
+            },
+            "required": ["creation_task_failure_context"],
+            "additionalProperties": false
+        },
+        {
+            "properties": {
+                "runtime_env_failed_context": {
+                    "type": "object",
+                    "properties": {
+                        "error_message": {
+                            "type": "string"
+                        }
+                    },
+                    "required": ["error_message"]
+                }
+            },
+            "required": ["runtime_env_failed_context"],
+            "additionalProperties": false
+        },
+        {
+            "properties": {
+                "actor_unschedulable_context": {
+                    "type": "object",
+                    "properties": {
+                        "error_message": {
+                            "type": "string"
+                        }
+                    },
+                    "required": ["error_message"]
+                }
+            },
+            "required": ["actor_unschedulable_context"],
+            "additionalProperties": false
+        },
+        {
+            "properties": {
+                "oom_context": {
+                    "type": "object",
+                    "properties": {
+                        "error_message": {
+                            "type": "string"
+                        },
+                        "fail_immediately": {
+                            "type": "boolean"
+                        }
+                    },
+                    "required": ["error_message", "fail_immediately"]
+                }
+            },
+            "required": ["oom_context"],
+            "additionalProperties": false
+        },
+        {
+            "properties": {
+                "actor_died_error_context": {
+                    "type": "object",
+                    "properties": {
+                        "error_message": {
+                            "type": "string"
+                        },
+                        "owner_id": {
+                            "type": "string",
+                            "format": "bytes"
+                        },
+                        "owner_ip_address": {
+                            "type": "string"
+                        },
+                        "node_ip_address": {
+                            "type": "string"
+                        },
+                        "pid": {
+                            "type": "integer"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "ray_namespace": {
+                            "type": "string"
+                        },
+                        "class_name": {
+                            "type": "string"
+                        },
+                        "actor_id": {
+                            "type": "string",
+                            "format": "bytes"
+                        },
+                        "never_started": {
+                            "type": "boolean"
+                        },
+                        "node_death_info": {
+                            "type": "object",
+                            "properties": {
+                                "reason": {
+                                    "type": "string",
+                                    "enum": ["UNSPECIFIED", "EXPECTED_TERMINATION", "UNEXPECTED_TERMINATION", "AUTOSCALER_DRAIN_PREEMPTED", "AUTOSCALER_DRAIN_IDLE"]
+                                },
+                                "reason_message": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["reason", "reason_message"]
+                        },
+                        "reason": {
+                            "type": "string",
+                            "enum": ["UNSPECIFIED", "WORKER_DIED", "OWNER_DIED", "NODE_DIED", "RAY_KILL", "OUT_OF_SCOPE", "REF_DELETED"]
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

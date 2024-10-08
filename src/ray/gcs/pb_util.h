@@ -253,7 +253,7 @@ inline void FillTaskInfo(rpc::TaskInfoEntry *task_info,
   task_info->mutable_runtime_env_info()->CopyFrom(task_spec.RuntimeEnvInfo());
   const auto &pg_id = task_spec.PlacementGroupBundleId().first;
   if (!pg_id.IsNil()) {
-    task_info->set_placement_group_id(pg_id.Binary());
+    task_info->set_placement_group_id(pg_id.Hex());
   }
 }
 
@@ -267,23 +267,23 @@ inline void FillExportTaskInfo(rpc::ExportTaskEventData::TaskInfoEntry *task_inf
     type = rpc::TaskType::DRIVER_TASK;
   } else if (task_spec.IsActorCreationTask()) {
     type = rpc::TaskType::ACTOR_CREATION_TASK;
-    task_info->set_actor_id(task_spec.ActorCreationId().Binary());
+    task_info->set_actor_id(task_spec.ActorCreationId().Hex());
   } else {
     RAY_CHECK(task_spec.IsActorTask());
     type = rpc::TaskType::ACTOR_TASK;
-    task_info->set_actor_id(task_spec.ActorId().Binary());
+    task_info->set_actor_id(task_spec.ActorId().Hex());
   }
   task_info->set_type(type);
   task_info->set_language(task_spec.GetLanguage());
   task_info->set_func_or_class_name(task_spec.FunctionDescriptor()->CallString());
 
-  task_info->set_task_id(task_spec.TaskId().Binary());
+  task_info->set_task_id(task_spec.TaskId().Hex());
   // NOTE: we set the parent task id of a task to be submitter's task id, where
   // the submitter depends on the owner coreworker's:
   // - if the owner coreworker runs a normal task, the submitter's task id is the task id.
   // - if the owner coreworker runs an actor, the submitter's task id will be the actor's
   // creation task id.
-  task_info->set_parent_task_id(task_spec.SubmitterTaskId().Binary());
+  task_info->set_parent_task_id(task_spec.SubmitterTaskId().Hex());
   const auto &resources_map = task_spec.GetRequiredResources().GetResourceMap();
   task_info->mutable_required_resources()->insert(resources_map.begin(),
                                                   resources_map.end());
@@ -306,7 +306,7 @@ inline void FillExportTaskInfo(rpc::ExportTaskEventData::TaskInfoEntry *task_inf
 
   const auto &pg_id = task_spec.PlacementGroupBundleId().first;
   if (!pg_id.IsNil()) {
-    task_info->set_placement_group_id(pg_id.Binary());
+    task_info->set_placement_group_id(pg_id.Hex());
   }
 }
 

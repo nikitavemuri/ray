@@ -112,8 +112,8 @@ void TaskStatusEvent::ToRpcTaskEvents(rpc::TaskEvents *rpc_task_events) {
 void TaskStatusEvent::ToRpcTaskExportEvents(
     std::shared_ptr<rpc::ExportTaskEventData> rpc_task_export_event_data) {
   // Base fields
-  rpc_task_export_event_data->set_task_id(task_id_.Binary());
-  rpc_task_export_event_data->set_job_id(job_id_.Binary());
+  rpc_task_export_event_data->set_task_id(task_id_.Hex());
+  rpc_task_export_event_data->set_job_id(job_id_.Hex());
   rpc_task_export_event_data->set_attempt_number(attempt_number_);
 
   // Task info.
@@ -133,14 +133,14 @@ void TaskStatusEvent::ToRpcTaskExportEvents(
     RAY_CHECK(task_status_ == rpc::TaskStatus::SUBMITTED_TO_WORKER)
         << "Node ID should be included when task status changes to "
            "SUBMITTED_TO_WORKER.";
-    dst_state_update->set_node_id(state_update_->node_id_->Binary());
+    dst_state_update->set_node_id(state_update_->node_id_->Hex());
   }
 
   if (state_update_->worker_id_.has_value()) {
     RAY_CHECK(task_status_ == rpc::TaskStatus::SUBMITTED_TO_WORKER)
         << "Worker ID should be included when task status changes to "
            "SUBMITTED_TO_WORKER.";
-    dst_state_update->set_worker_id(state_update_->worker_id_->Binary());
+    dst_state_update->set_worker_id(state_update_->worker_id_->Hex());
   }
 
   if (state_update_->error_info_.has_value()) {
@@ -189,11 +189,11 @@ void TaskProfileEvent::ToRpcTaskExportEvents(
   auto profile_events = rpc_task_export_event_data->mutable_profile_events();
 
   // Base fields
-  rpc_task_export_event_data->set_task_id(task_id_.Binary());
-  rpc_task_export_event_data->set_job_id(job_id_.Binary());
+  rpc_task_export_event_data->set_task_id(task_id_.Hex());
+  rpc_task_export_event_data->set_job_id(job_id_.Hex());
   rpc_task_export_event_data->set_attempt_number(attempt_number_);
   profile_events->set_component_type(std::move(component_type_));
-  profile_events->set_component_id(std::move(component_id_));
+  profile_events->set_component_id(WorkerID::FromBinary(std::move(component_id_)).Hex());
   profile_events->set_node_ip_address(std::move(node_ip_address_));
   auto event_entry = profile_events->add_events();
   event_entry->set_event_name(std::move(event_name_));

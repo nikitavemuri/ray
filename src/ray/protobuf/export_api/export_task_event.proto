@@ -48,9 +48,9 @@ message ExportTaskEventData {
 
   message TaskStateUpdate {
     // Node that runs the task.
-    optional bytes node_id = 1;
+    optional string node_id = 1;
     // Worker that runs the task.
-    optional bytes worker_id = 2;
+    optional string worker_id = 2;
     // Task failure info.
     optional RayErrorInfo error_info = 3;
     // Task logs info.
@@ -72,9 +72,9 @@ message ExportTaskEventData {
     Language language = 2;
     string func_or_class_name = 3;
     // Task ID of the task.
-    bytes task_id = 4;
+    string task_id = 4;
     // Task ID of the parent task.
-    bytes parent_task_id = 5;
+    string parent_task_id = 5;
     // Quantities of the different resources required by this task.
     map<string, double> required_resources = 6;
     // Runtime environment for this task.
@@ -82,11 +82,11 @@ message ExportTaskEventData {
     // The actor id for this task.
     // If the task type is Actor creation task or Actor task
     // this is set. Otherwise, it is empty.
-    optional bytes actor_id = 8;
+    optional string actor_id = 8;
     // The placement group id of this task.
     // If the task/actor is created within a placement group,
     // this value is configured.
-    optional bytes placement_group_id = 9;
+    optional string placement_group_id = 9;
   }
 
   message ProfileEventEntry {
@@ -107,7 +107,7 @@ message ExportTaskEventData {
     // object_manager, or node_manager.
     string component_type = 1;
     // An identifier for the component that generated the event.
-    bytes component_id = 2;
+    string component_id = 2;
     // Node IP address.
     string node_ip_address = 3;
     // Events.
@@ -115,7 +115,7 @@ message ExportTaskEventData {
   }
 
   // Metadata shared by all event types.
-  bytes task_id = 1;
+  string task_id = 1;
   // The current retry attempt number for the task.
   int32 attempt_number = 2;
   // Task Info.
@@ -125,5 +125,5 @@ message ExportTaskEventData {
   // Task profiling events.
   optional ProfileEvents profile_events = 5;
   // Job id of the task
-  bytes job_id = 6;
+  string job_id = 6;
 }

@@ -1,0 +1,221 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "task_id": {
+            "type": "string"
+        },
+        "attempt_number": {
+            "type": "integer"
+        },
+        "job_id": {
+            "type": "string"
+        },
+        "task_info": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": ["NORMAL_TASK", "ACTOR_CREATION_TASK", "ACTOR_TASK", "DRIVER_TASK"]
+                },
+                "language": {
+                    "type": "string",
+                    "enum": ["PYTHON", "JAVA", "CPP"]
+                },
+                "func_or_class_name": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "parent_task_id": {
+                    "type": "string"
+                },
+                "required_resources": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number"
+                    }
+                },
+                "runtime_env_info": {
+                    "type": "object",
+                    "properties": {
+                        "serialized_runtime_env": {
+                            "type": "string"
+                        },
+                        "uris": {
+                            "type": "object",
+                            "properties": {
+                                "working_dir_uri": {
+                                    "type": "string"
+                                },
+                                "py_modules_uris": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "required": ["working_dir_uri", "py_modules_uris"]
+                        },
+                        "runtime_env_config": {
+                            "type": "object",
+                            "properties": {
+                                "setup_timeout_seconds": {
+                                    "type": "integer"
+                                },
+                                "eager_install": {
+                                    "type": "boolean"
+                                },
+                                "log_files": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "array"
+                                    }
+                                }
+                            },
+                            "required": ["setup_timeout_seconds", "eager_install", "log_files"]
+                        }
+                    }
+                },
+                "actor_id": {
+                    "type": "string"
+                },
+                "placement_group_id": {
+                    "type": "string"
+                }
+            },
+            "required": ["type", "language", "func_or_class_name", "task_id", "parent_task_id", "required_resources", "runtime_env_info"]
+        },
+        "state_updates": {
+            "type": "object",
+            "properties": {
+                "node_id": {
+                    "type": "string"
+                },
+                "worker_id": {
+                    "type": "string"
+                },
+                "error_info": {
+                    "type": "object",
+                    "properties": {
+                        "error_message": {
+                            "type": "string"
+                        },
+                        "error_type": {
+                            "type": "string",
+                            "enum": ["WORKER_DIED", "ACTOR_DIED", "OBJECT_UNRECONSTRUCTABLE", "TASK_EXECUTION_EXCEPTION", "OBJECT_IN_PLASMA", "TASK_CANCELLED", "ACTOR_CREATION_FAILED", "RUNTIME_ENV_SETUP_FAILED", "OBJECT_LOST", "OWNER_DIED", "OBJECT_DELETED", "DEPENDENCY_RESOLUTION_FAILED", "OBJECT_UNRECONSTRUCTABLE_MAX_ATTEMPTS_EXCEEDED", "OBJECT_UNRECONSTRUCTABLE_LINEAGE_EVICTED", "OBJECT_FETCH_TIMED_OUT", "LOCAL_RAYLET_DIED", "TASK_PLACEMENT_GROUP_REMOVED", "ACTOR_PLACEMENT_GROUP_REMOVED", "TASK_UNSCHEDULABLE_ERROR", "ACTOR_UNSCHEDULABLE_ERROR", "OUT_OF_DISK_ERROR", "OBJECT_FREED", "OUT_OF_MEMORY", "NODE_DIED", "END_OF_STREAMING_GENERATOR", "ACTOR_UNAVAILABLE"]
+                        },
+                        "runtime_env_setup_failed_error": {
+                            "type": "object",
+                            "properties": {
+                                "error_message": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["error_message"]
+                        },
+                        "actor_unavailable_error": {
+                            "type": "object",
+                            "properties": {
+                                "actor_id": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "actor_died_error": { "$ref": "./actor_death_cause_schema.json" }
+                    },
+                    "required": ["error_message", "error_type"],
+                    "oneOf": [
+                        {
+                            "required": ["runtime_env_setup_failed_error"],
+                            "additionalProperties": false
+                        },
+                        {
+                            "required": ["actor_unavailable_error"],
+                            "additionalProperties": false
+                        },
+                        {
+                            "required": ["actor_died_error"],
+                            "additionalProperties": false
+                        }
+                    ]
+                },
+                "task_log_info": {
+                    "type": "object",
+                    "properties": {
+                        "stdout_file": {
+                            "type": "string"
+                        },
+                        "stderr_file": {
+                            "type": "string"
+                        },
+                        "stdout_start": {
+                            "type": "integer"
+                        },
+                        "stdout_end": {
+                            "type": "integer"
+                        },
+                        "stderr_start": {
+                            "type": "integer"
+                        },
+                        "stderr_end": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "worker_pid": {
+                    "type": "integer"
+                },
+                "is_debugger_paused": {
+                    "type": "boolean"
+                },
+                "state_ts_ns": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[0-9]+$": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            },
+            "required": ["state_ts_ns"]
+        },
+        "profile_events": {
+            "type": "object",
+            "properties": {
+                "component_type": {
+                    "type": "string"
+                },
+                "component_id": {
+                    "type": "string"
+                },
+                "node_ip_address": {
+                    "type": "string"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "start_time": {
+                                "type": "integer"
+                            },
+                            "end_time": {
+                                "type": "integer"
+                            },
+                            "extra_data": {
+                                "type": "string"
+                            },
+                            "event_name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["start_time", "end_time", "event_name"]
+                    }
+                }
+            }
+        }
+    },
+    "required": ["task_id", "attempt_number", "job_id"]
+}
